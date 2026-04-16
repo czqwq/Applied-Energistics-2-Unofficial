@@ -317,8 +317,7 @@ public class PartPlacement {
                             side.getOpposite().ordinal(),
                             player,
                             world,
-                            pass == PlaceType.INTERACT_FIRST_PASS ? PlaceType.INTERACT_SECOND_PASS
-                                    : PlaceType.PLACE_ITEM,
+                            PlaceType.PLACE_ITEM,
                             depth + 1);
                 }
             }
