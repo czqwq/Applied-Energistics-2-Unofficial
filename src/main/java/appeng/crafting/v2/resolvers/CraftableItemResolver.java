@@ -669,21 +669,28 @@ public class CraftableItemResolver implements CraftingRequestResolver {
         }
     }
 
+    /**
+     * Comparator that orders patterns by descending priority. Stored as a constant to avoid per-call allocation when
+     * sorting the fuzzy pattern list.
+     */
+    private static final Comparator<ICraftingPatternDetails> PATTERN_PRIORITY_DESC = Comparator
+            .comparing(ICraftingPatternDetails::getPriority).reversed();
+
     @Nonnull
     @Override
     public List<CraftingTask> provideCraftingRequestResolvers(@Nonnull CraftingRequest request,
             @Nonnull CraftingContext context) {
         final ArrayList<CraftingTask> tasks = new ArrayList<>();
         final Set<ICraftingPatternDetails> denyList = request.patternParents;
+        // Precise patterns are already stored in descending priority order; only removeAll is needed.
         final List<ICraftingPatternDetails> patterns = new ArrayList<>(context.getPrecisePatternsFor(request.stack));
         patterns.removeAll(denyList);
-        patterns.sort(Comparator.comparing(ICraftingPatternDetails::getPriority).reversed());
         // If fuzzy patterns are allowed,
         if (request.substitutionMode == SubstitutionMode.ACCEPT_FUZZY) {
             final List<ICraftingPatternDetails> fuzzyPatterns = new ArrayList<>(
                     context.getFuzzyPatternsFor(request.stack));
             fuzzyPatterns.removeAll(denyList);
-            fuzzyPatterns.sort(Comparator.comparing(ICraftingPatternDetails::getPriority).reversed());
+            fuzzyPatterns.sort(PATTERN_PRIORITY_DESC);
             patterns.addAll(fuzzyPatterns);
         }
         int priority = CraftingTask.PRIORITY_CRAFT_OFFSET + patterns.size() - 1;

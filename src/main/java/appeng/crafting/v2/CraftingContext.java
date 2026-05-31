@@ -190,13 +190,7 @@ public final class CraftingContext {
     }
 
     public List<ICraftingPatternDetails> getPrecisePatternsFor(@Nonnull IAEStack<?> stack) {
-        return precisePatternCache.compute(stack, (key, value) -> {
-            if (value == null) {
-                return availablePatterns.getOrDefault(stack, ImmutableList.of());
-            } else {
-                return value;
-            }
-        });
+        return precisePatternCache.computeIfAbsent(stack, k -> availablePatterns.getOrDefault(k, ImmutableList.of()));
     }
 
     public List<ICraftingPatternDetails> getFuzzyPatternsFor(@Nonnull IAEStack<?> stack) {
@@ -225,9 +219,17 @@ public final class CraftingContext {
         if (!pattern.isCraftable()) {
             return false;
         }
-        final Boolean cached = isPatternComplexCache.get(pattern);
-        if (cached != null) {
-            return cached;
+        final Boolean localCached = isPatternComplexCache.get(pattern);
+        if (localCached != null) {
+            return localCached;
+        }
+        // Check the persistent per-grid cache so we don't re-simulate across crafting jobs.
+        if (craftingGrid instanceof CraftingGridCache gridCache) {
+            final Boolean globalCached = gridCache.getCachedPatternComplexity(pattern);
+            if (globalCached != null) {
+                isPatternComplexCache.put(pattern, globalCached);
+                return globalCached;
+            }
         }
 
         final IAEStack<?>[] inputs = pattern.getAEInputs();
@@ -235,6 +237,9 @@ public final class CraftingContext {
 
         final boolean isComplex = Arrays.stream(mcOutputs).anyMatch(Objects::nonNull);
         isPatternComplexCache.put(pattern, isComplex);
+        if (craftingGrid instanceof CraftingGridCache gridCache) {
+            gridCache.cachePatternComplexity(pattern, isComplex);
+        }
         return isComplex;
     }
 
