@@ -135,7 +135,7 @@ public class CraftingGridCache
             .newSetFromMap(new WeakHashMap<>());
 
     /** Cached immutable copy of {@link #craftableItems}, rebuilt lazily after each {@link #updatePatterns()} call. */
-    private ImmutableMap<IAEStack<?>, ImmutableList<ICraftingPatternDetails>> craftableItemsCache = null;
+    private volatile ImmutableMap<IAEStack<?>, ImmutableList<ICraftingPatternDetails>> craftableItemsCache = null;
 
     /**
      * Global cache for {@link appeng.crafting.v2.CraftingContext#isPatternComplex} results.

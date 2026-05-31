@@ -224,7 +224,8 @@ public final class CraftingContext {
             return localCached;
         }
         // Check the persistent per-grid cache so we don't re-simulate across crafting jobs.
-        if (craftingGrid instanceof CraftingGridCache gridCache) {
+        final CraftingGridCache gridCache = craftingGrid instanceof CraftingGridCache c ? c : null;
+        if (gridCache != null) {
             final Boolean globalCached = gridCache.getCachedPatternComplexity(pattern);
             if (globalCached != null) {
                 isPatternComplexCache.put(pattern, globalCached);
@@ -237,7 +238,7 @@ public final class CraftingContext {
 
         final boolean isComplex = Arrays.stream(mcOutputs).anyMatch(Objects::nonNull);
         isPatternComplexCache.put(pattern, isComplex);
-        if (craftingGrid instanceof CraftingGridCache gridCache) {
+        if (gridCache != null) {
             gridCache.cachePatternComplexity(pattern, isComplex);
         }
         return isComplex;
