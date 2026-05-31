@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -132,6 +133,16 @@ public class CraftingGridCache
 
     private final Set<ICraftingPostPatternChangeListener> postPatternChangeListeners = Collections
             .newSetFromMap(new WeakHashMap<>());
+
+    /** Cached immutable copy of {@link #craftableItems}, rebuilt lazily after each {@link #updatePatterns()} call. */
+    private volatile ImmutableMap<IAEStack<?>, ImmutableList<ICraftingPatternDetails>> craftableItemsCache = null;
+
+    /**
+     * Global cache for {@link appeng.crafting.v2.CraftingContext#isPatternComplex} results.
+     * Stored here so it survives across multiple crafting jobs and is only cleared when patterns change.
+     * Keyed by pattern identity.
+     */
+    private final IdentityHashMap<ICraftingPatternDetails, Boolean> patternComplexityCache = new IdentityHashMap<>();
 
     public CraftingGridCache(final IGrid grid) {
         this.grid = grid;
@@ -249,6 +260,10 @@ public class CraftingGridCache
             rebuildNeeded.add(this);
             return;
         }
+
+        // Invalidate caches that depend on the pattern list
+        this.craftableItemsCache = null;
+        this.patternComplexityCache.clear();
 
         // erase list.
         this.craftingMethods.clear();
@@ -499,7 +514,10 @@ public class CraftingGridCache
 
     @Override
     public ImmutableMap<IAEStack<?>, ImmutableList<ICraftingPatternDetails>> getCraftingMultiPatterns() {
-        return ImmutableMap.copyOf(this.craftableItems);
+        if (craftableItemsCache == null) {
+            craftableItemsCache = ImmutableMap.copyOf(this.craftableItems);
+        }
+        return craftableItemsCache;
     }
 
     @Override
@@ -699,6 +717,22 @@ public class CraftingGridCache
         }
 
         return mediums;
+    }
+
+    /**
+     * Returns a cached result of whether the given pattern has complex crafting behaviour (i.e. leaves items in the
+     * crafting grid), or {@code null} if no result is cached yet.
+     */
+    public Boolean getCachedPatternComplexity(final ICraftingPatternDetails pattern) {
+        return patternComplexityCache.get(pattern);
+    }
+
+    /**
+     * Stores a computed {@code isComplex} result for the given pattern in the global cache so it can be reused across
+     * multiple crafting jobs without re-simulating.
+     */
+    public void cachePatternComplexity(final ICraftingPatternDetails pattern, final boolean isComplex) {
+        patternComplexityCache.put(pattern, isComplex);
     }
 
     public boolean hasCpu(final ICraftingCPU cpu) {
